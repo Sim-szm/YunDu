@@ -19,7 +19,16 @@
 #include <map>
 #include <vector>
 
-//...wait
+class epollpoller{
+public:
+	epollpoller();
+	virtual ~epollpoller();
+	
+private:
+	typedef std::vector<struct epoll_event> event_list;
 
+	int m_epollfd;
+	event_list m_events;
+};
 
 #endif 
