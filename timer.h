@@ -49,9 +49,63 @@ public:
 
 class time_heap{
 public:
-	time_heap();
+	time_heap(int capacity):capacity_t(capacity),cur_size(0){
+		array=new timer_t* [capacity_t];
+		assert(array!=NULL);
+		for(int i=0;i<capacity_t;i++){
+			array[i]=NULL;
+		}
+	}
+
+	time_heap(timer_t** init,int size ,int capacity):\
+		capacity_t(capacity),cur_size(size){
+		array=new timer_t* [capacity_t];
+		assert(array!=NULL);
+		for(int i=0;i<capacity_t;i++){
+			array[i]=NULL;
+		}
+		if(size!=0){
+			for(int i=0;i<size;i++){
+				array[i]=init[i];
+			}
+			for(int i=(cur_size-1)/2;i>=0;i--){
+				//......
+			}
+		}
+	}
+
+	~time_heap(){
+		for(int i=0;i<cur_size;i++){
+			delete array[i];
+		}
+		delete [] array;
+	}
+
+	void add_timer(timer_t* timer);
+	
+	void delete_timer(timer_t* timer);
+
+	timer_t* get_top()const{
+		if(cur_size==0){
+			return NULL;
+		}
+		return array[0];
+	}
+
+	void pop_timer();
+
+	void tick();
+
 private:
 	timer_t** array;
+
 	int capacity_t;
+
 	int cur_size;
+
+	void percolate(int hole);
+
+	void resize_heap();
 };
+
+#endif
