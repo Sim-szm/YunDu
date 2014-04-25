@@ -21,7 +21,7 @@
 #include <netinet/in.h>
 #include <time.h>
 
-class timer_t;
+class heap_timer;
 
 typedef struct{
 	char *buf;
@@ -33,13 +33,16 @@ typedef struct cli_data{
 	int sockfd;
 	struct sockaddr_in address;
 	xbuffer_t buffer;
-	timer_t* timer;
+	heap_timer* timer;
 }cli_data_t;
 
-class timer_t{
+class heap_timer{
 public:
-	timer_t(int delay){
+	heap_timer(int delay){
 		expire=time(NULL)+delay;
+	}
+	heap_timer(){
+		expire=time(NULL);
 	}
 public:
 	time_t expire;
@@ -50,16 +53,16 @@ public:
 class time_heap{
 public:
 	time_heap(int capacity):capacity_t(capacity),cur_size(0){
-		array=new timer_t* [capacity_t];
+		array=new heap_timer* [capacity_t];
 		assert(array!=NULL);
 		for(int i=0;i<capacity_t;i++){
 			array[i]=NULL;
 		}
 	}
 
-	time_heap(timer_t** init,int size ,int capacity)
+	time_heap(heap_timer** init,int size ,int capacity)
 		:capacity_t(capacity),cur_size(size){
-		array=new timer_t* [capacity_t];
+		array=new heap_timer* [capacity_t];
 		assert(array!=NULL);
 		for(int i=0;i<capacity_t;i++){
 			array[i]=NULL;
@@ -81,11 +84,11 @@ public:
 		delete [] array;
 	}
 
-	void add_timer(timer_t* timer);
+	void add_timer(heap_timer* timer);
 	
-	void delete_timer(timer_t* timer);
+	void delete_timer(heap_timer* timer);
 
-	timer_t* get_top()const{
+	heap_timer* get_top()const{
 		if(cur_size==0){
 			return NULL;
 		}
@@ -97,7 +100,7 @@ public:
 	void tick();
 
 private:
-	timer_t** array;
+	heap_timer** array;
 
 	int capacity_t;
 
@@ -108,7 +111,7 @@ private:
 	void resize_heap();
 };
 
-void time_heap::add_timer(timer_t* timer){
+void time_heap::add_timer(heap_timer* timer){
 	assert(timer!=NULL);
 	if(capacity_t <= cur_size){
 		resize_heap();
@@ -125,7 +128,7 @@ void time_heap::add_timer(timer_t* timer){
 	array[hole_index]=timer;
 }
 
-void time_heap::delete_timer(timer_t* timer){
+void time_heap::delete_timer(heap_timer* timer){
 	assert(timer!=NULL);
 	timer->callback_func=NULL;
 	//just not callback ! not really delete !
@@ -142,7 +145,7 @@ void time_heap::pop_timer(){
 }
 
 void time_heap::tick(){
-	timer_t* tmp=array[0];
+	heap_timer* tmp=array[0];
 	time_t cur_time=time(NULL);
 	while(cur_size!=0){
 		if(!tmp)
@@ -158,7 +161,7 @@ void time_heap::tick(){
 }
 
 void time_heap::percolate(int hole_index){
-	timer_t* tmp=array[hole_index];
+	heap_timer* tmp=array[hole_index];
 	int child=0;
 	for( ; ((hole_index*2+1)<=(cur_size-1)) ; hole_index=child){
 		child=hole_index*2+1;
@@ -176,7 +179,7 @@ void time_heap::percolate(int hole_index){
 }
 
 void time_heap::resize_heap(){
-	timer_t** tmp=new timer_t* [capacity_t*2];
+	heap_timer** tmp=new heap_timer* [capacity_t*2];
 	for(int i=0;i<capacity_t*2;i++){
 		tmp[i]=NULL;
 	}
