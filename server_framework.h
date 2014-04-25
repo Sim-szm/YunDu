@@ -71,7 +71,7 @@ private:
 	int listenfd_;
 	bool stop_;
 	int process_num_;
-	int index_;
+	int index_; //current_process_index
 	process* sub_process_; //contral the worker_process
 public:
 	static server_framework<T> * instance_;
@@ -119,7 +119,8 @@ void signal_handler(int sig){
 }
 
 template<typename T>
-server_framework<T>::server_framework(int listenfd,int process_num):listenfd_(listenfd),process_num_(process_num),index_(-1),stop_(false){
+server_framework<T>::server_framework(int listenfd,int process_num)\
+		:listenfd_(listenfd),process_num_(process_num),index_(-1),stop_(false){
 	sub_process_=new process[process_num]; //class array for master communicate with worker process
 	assert(sub_process_);
 	for(int i=0;i<process_num;i++){
