@@ -103,7 +103,7 @@ private:
 
 	int cur_size;
 
-	void percolate(int index);
+	void percolate(int hole_index);
 
 	void resize_heap();
 };
@@ -113,16 +113,16 @@ void time_heap::add_timer(timer_t* timer){
 	if(capacity_t <= cur_size){
 		resize_heap();
 	}
-	int index=cur_size++;
+	int hole_index=cur_size++;
 	int parent=0;
-	for(; index>0;index=parent){
-		parent=(index-1)/2;
+	for(; hole_index>0;hole_index=parent){
+		parent=(hole_index-1)/2;
 		if((array[parent]->expire) <=( timer->expire)){
 			break;
 		}
-		array[index]=array[parent];
+		array[hole_index]=array[parent];
 	}
-	array[index]=timer;
+	array[hole_index]=timer;
 }
 
 void time_heap::delete_timer(timer_t* timer){
@@ -157,22 +157,22 @@ void time_heap::tick(){
 	}
 }
 
-void time_heap::percolate(int index){
-	timer_t* tmp=array[index];
+void time_heap::percolate(int hole_index){
+	timer_t* tmp=array[hole_index];
 	int child=0;
-	for( ; ((index*2+1)<=(cur_size-1)) ; index=child){
-		child=index*2+1;
+	for( ; ((hole_index*2+1)<=(cur_size-1)) ; hole_index=child){
+		child=hole_index*2+1;
 		if( (child<(cur_size-1)) && \
 					(array[child+1]->expire < array[child]->expire)){
 			++child;
 		}
 		if(array[child]->expire < tmp->expire){
-			array[index]=array[child];
+			array[hole_index]=array[child];
 		}
 		else
 		      break;
 	}
-	array[index]=tmp;
+	array[hole_index]=tmp;
 }
 
 void time_heap::resize_heap(){
