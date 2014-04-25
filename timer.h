@@ -57,8 +57,8 @@ public:
 		}
 	}
 
-	time_heap(timer_t** init,int size ,int capacity):\
-		capacity_t(capacity),cur_size(size){
+	time_heap(timer_t** init,int size ,int capacity)
+		:capacity_t(capacity),cur_size(size){
 		array=new timer_t* [capacity_t];
 		assert(array!=NULL);
 		for(int i=0;i<capacity_t;i++){
@@ -69,7 +69,7 @@ public:
 				array[i]=init[i];
 			}
 			for(int i=(cur_size-1)/2;i>=0;i--){
-				//......
+				percolate(i);
 			}
 		}
 	}
@@ -103,9 +103,90 @@ private:
 
 	int cur_size;
 
-	void percolate(int hole);
+	void percolate(int index);
 
 	void resize_heap();
 };
+
+void time_heap::add_timer(timer_t* timer){
+	assert(timer!=NULL);
+	if(capacity_t <= cur_size){
+		resize_heap();
+	}
+	int index=cur_size++;
+	int parent=0;
+	for(; index>0;index=parent){
+		parent=(index-1)/2;
+		if((array[parent]->expire) <=( timer->expire)){
+			break;
+		}
+		array[index]=array[parent];
+	}
+	array[index]=timer;
+}
+
+void time_heap::delete_timer(timer_t* timer){
+	assert(timer!=NULL);
+	timer->callback_func=NULL;
+	//just not callback ! not really delete !
+}
+
+void time_heap::pop_timer(){
+	if(cur_size==0)
+	      return ;
+	if(NULL!=array[0]){
+		delete array[0];
+		array[0]=array[--cur_size];
+		percolate(0);
+	}
+}
+
+void time_heap::tick(){
+	timer_t* tmp=array[0];
+	time_t cur_time=time(NULL);
+	while(cur_size!=0){
+		if(!tmp)
+		      break;
+		if(tmp->expire>cur_time)
+		      break;
+		if(array[0]->callback_func){
+			array[0]->callback_func(array[0]->user_data);
+		}
+		pop_timer();
+		tmp=array[0];
+	}
+}
+
+void time_heap::percolate(int index){
+	timer_t* tmp=array[index];
+	int child=0;
+	for( ; ((index*2+1)<=(cur_size-1)) ; index=child){
+		child=index*2+1;
+		if( (child<(cur_size-1)) && \
+					(array[child+1]->expire < array[child]->expire)){
+			++child;
+		}
+		if(array[child]->expire < tmp->expire){
+			array[index]=array[child];
+		}
+		else
+		      break;
+	}
+	array[index]=tmp;
+}
+
+void time_heap::resize_heap(){
+	timer_t** tmp=new timer_t* [capacity_t*2];
+	for(int i=0;i<capacity_t*2;i++){
+		tmp[i]=NULL;
+	}
+	assert(tmp!=NULL);
+	capacity_t=capacity_t*2;
+	for(int i=0;i<cur_size;i++){
+		tmp[i]=array[i];
+	}
+	delete [] array;
+	array=tmp;
+}
 
 #endif
