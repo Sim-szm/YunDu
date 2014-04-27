@@ -29,12 +29,15 @@
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
+#include "timer.h"
 
 #define PORT 9527
 #define backlog 10
 #define core_num 8
 #define user_per_process 65533
 #define event_max 10000
+#define BUFF 2048
+#define buf_size 2048
 /*define the process data*/
 class process{
 public:
@@ -73,11 +76,14 @@ private:
 	int process_num_;
 	int index_; //current_process_index
 	process* sub_process_; //contral the worker_process
+	time_heap* timer_manage_;
+	int timer_;
 public:
 	static server_framework<T> * instance_;
 };
 
-
+char msg[BUFF];
+char user_buffer[buf_size]; //like shit define buffer here !;
 static int signal_pipefd[2];
 
 template<typename T>
@@ -118,10 +124,68 @@ void signal_handler(int sig){
 	send(signal_pipefd[1],(char*)&msg,1,0);
 }
 
+//==========================================================*************************************************************
+void Interface_For_Mysql(char *search_line,int sockfd){
+	MYSQL *conn;
+    	MYSQL_RES *res;
+	MYSQL_ROW row;
+  	const char *server = "localhost";
+    	const char *user = "root";
+    	const char *password = "xianszm007";
+    	const char *database = "sim";
+    	conn = mysql_init(NULL);
+    	if (!mysql_real_connect(conn,server,user,password,database,0, NULL, 0)) {
+		std::cout<< mysql_error(conn)<<std::endl;
+       		return;
+    	}
+    	if ( mysql_set_character_set(conn, "utf8" ) ) {
+		std::cout<< mysql_error(conn)<<std::endl;
+		return;
+    	}
+	if(search_line!=NULL){
+    		if(!mysql_query(conn, search_line)){}
+		else
+		      return;
+    	}else
+	      return;
+	res = mysql_use_result(conn);
+    	while ((row = mysql_fetch_row(res))!=NULL){
+		for(int t=0;t<mysql_num_fields(res);t++){
+			strcat(msg,row[t]);
+			strcat(msg," | ");
+		}
+		strcat(msg,"\n");
+	}
+    	mysql_free_result(res);
+    	mysql_close(conn);
+	send(sockfd,msg,BUFF,0);
+}
+void* callback_func(cli_data_t * user_data){
+	memset(user_buffer,'\0',buf_size);
+	int ret=recv(user_data->sockfd,user_buffer,buf_size,0);
+	if(ret<0);
+	else if(strncasecmp(user_buffer,"FIRST",5)!=0){
+		std::cout<<"client "<<(char*)inet_ntoa(user_data->address.sin_addr)<<" send data :  "<<user_buffer<<std::endl;
+		memset(msg,'\0',BUFF);
+		Interface_For_Mysql(user_buffer,user_data->sockfd);
+	}else{
+		int fd=open("msg.txt",O_RDONLY|O_NONBLOCK);
+		int ret=read(fd,user_buffer,buf_size);
+		close(fd);
+		send(user_data->sockfd,user_buffer,buf_size,0);
+	}
+}
+
+//==========================================================************************************************
+
+
 template<typename T>
 server_framework<T>::server_framework(int listenfd,int process_num)\
-		:listenfd_(listenfd),process_num_(process_num),index_(-1),stop_(false){
+		:listenfd_(listenfd),process_num_(process_num),\
+		timer_(-1),index_(-1),stop_(false){
 	sub_process_=new process[process_num]; //class array for master communicate with worker process
+	timer_manage_=new time_heap(process_num*user_num_per_process);
+
 	assert(sub_process_);
 	for(int i=0;i<process_num;i++){
 		int pair_fd=socketpair(PF_UNIX,SOCK_STREAM,0,sub_process_[i].pipefd);
@@ -175,7 +239,7 @@ void server_framework<T>::exec_worker_process(){
 	int current_num=0;
 	int ret=-1;
 	while(!stop_){
-		current_num=epoll_wait(epollfd_,events,max_event_num,-1);
+		current_num=epoll_wait(epollfd_,events,max_event_num,timer_);
 		if(current_num<0 && errno!=EINTR)
 		      break;
 		for(int i=0;i<current_num;i++){
@@ -193,7 +257,13 @@ void server_framework<T>::exec_worker_process(){
 					if(connfd<0)
 					      continue;
 					set_fd(epollfd_,connfd);
-					users[connfd].init(connfd,address);
+					//users[connfd].init(connfd,address);
+					(users[connfd].user_data).address=address;
+					(users[connfd].user_data).sockfd=connfd;
+					users[connfd].callback_func=callback_func;
+					timer_manage_->add_timer(&users[connfd]);
+					timer_=(timer_manage_->get_top())->expire;
+
 				}
 
 			}
@@ -223,15 +293,18 @@ void server_framework<T>::exec_worker_process(){
 				}
 			/*data coming ,EPOLLIN /EPOLLOUT  I/O event*/
 			}else if(events[i].events&EPOLLIN){
-				if((users[sockfd].process())<0)
+				(*(users[sockfd].callback_func))(&users[sockfd].user_data);
+				if(ret<0)//ret as a bug ,not fix yet ! as deal with callback_func returned value !
 				      del_fd(epollfd_,sockfd);
 				else 
 				      continue;
 			}
+			//it should be somewhere to use tick() function to inspire the loop timeout check ! not finished wait....!
 			else
 			      continue;
 		}
 	}
+
 	delete []users;
 	users=NULL;
 	close(pipefd);
