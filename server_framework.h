@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
+#include <mysql.h>
 #include "timer.h"
 
 #define PORT 9527
@@ -58,6 +59,7 @@ public:
 	}
 	~server_framework(){
 		delete [] sub_process_;
+		delete [] timer_manage_;
 	}
 	void run_server();
 private:
@@ -131,7 +133,7 @@ void Interface_For_Mysql(char *search_line,int sockfd){
 	MYSQL_ROW row;
   	const char *server = "localhost";
     	const char *user = "root";
-    	const char *password = "xianszm007";
+    	const char *password = "***********";
     	const char *database = "sim";
     	conn = mysql_init(NULL);
     	if (!mysql_real_connect(conn,server,user,password,database,0, NULL, 0)) {
@@ -293,6 +295,7 @@ void server_framework<T>::exec_worker_process(){
 				}
 			/*data coming ,EPOLLIN /EPOLLOUT  I/O event*/
 			}else if(events[i].events&EPOLLIN){
+				int ret=1;
 				(*(users[sockfd].callback_func))(&users[sockfd].user_data);
 				if(ret<0)//ret as a bug ,not fix yet ! as deal with callback_func returned value !
 				      del_fd(epollfd_,sockfd);
