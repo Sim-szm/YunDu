@@ -33,7 +33,6 @@ typedef struct cli_data{
 	int sockfd;
 	struct sockaddr_in address;
 	xbuffer_t buffer;
-	heap_timer* timer;
 }cli_data_t;
 
 class heap_timer{
@@ -47,7 +46,7 @@ public:
 public:
 	time_t expire;
 	void (*callback_func)(cli_data_t*);
-	cli_data_t* user_data;
+	cli_data_t user_data;
 };
 
 class time_heap{
@@ -153,7 +152,7 @@ void time_heap::tick(){
 		if(tmp->expire>cur_time)
 		      break;
 		if(array[0]->callback_func){
-			array[0]->callback_func(array[0]->user_data);
+			array[0]->callback_func(&array[0]->user_data);
 		}
 		pop_timer();
 		tmp=array[0];
