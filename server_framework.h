@@ -259,13 +259,13 @@ void server_framework<T>::exec_worker_process(){
 					if(connfd<0)
 					      continue;
 					set_fd(epollfd_,connfd);
-					//users[connfd].init(connfd,address);
+					//users[connfd].init(connfd,address);  
 					(users[connfd].user_data).address=address;
 					(users[connfd].user_data).sockfd=connfd;
 					users[connfd].callback_func=callback_func;
 					timer_manage_->add_timer(&users[connfd]);
 					timer_=(timer_manage_->get_top())->expire;
-
+					//template <T>  as a timer func with callback_func !
 				}
 
 			}
