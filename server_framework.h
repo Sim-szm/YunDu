@@ -82,6 +82,8 @@ private:
 	int timer_;
 public:
 	static server_framework<T> * instance_;
+public:
+	int tepoll_wait(int epollfd,struct epoll_event *event,int max_event_number);
 };
 
 char msg[BUFF];
@@ -231,6 +233,33 @@ void server_framework<T>::run_server(){
 }
 
 template<typename T>
+int process_pool<T>::tepoll_wait(int epollfd,struct epoll_event *events,int max_event_number ){
+	int n;
+	time_t now;
+	time_t tv;
+	time_t *tvp;
+	while(true){
+		now=time(NULL);
+		if(timer_manage_->get_top()){
+			tv=(timer_manage_->get_top())->expire - now;
+			tvp=&tv;
+		}else{
+			tvp=NULL;
+		}
+		if(tvp==NULL){
+			n=epoll_wait(epollfd,events,max_event_number,-1);
+		}else{
+			n=epoll_wait(epollfd,events,max_event_number,*tvp);
+		}
+		if(n<0)
+		      return -1;
+		if(n>0)
+		      return n;
+		timer_manage_->tick();
+	}
+}
+
+template<typename T>
 void server_framework<T>::exec_worker_process(){
 	set_signal();
 	int pipefd=sub_process_[index_].pipefd[1];
@@ -241,7 +270,7 @@ void server_framework<T>::exec_worker_process(){
 	int current_num=0;
 	int ret=-1;
 	while(!stop_){
-		current_num=epoll_wait(epollfd_,events,max_event_num,timer_);
+		current_num=tepoll_wait(epollfd_,events,max_event_num);
 		if(current_num<0 && errno!=EINTR)
 		      break;
 		for(int i=0;i<current_num;i++){
