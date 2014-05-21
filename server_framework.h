@@ -79,7 +79,7 @@ private:
 	int index_; //current_process_index
 	process* sub_process_; //contral the worker_process
 	time_heap* timer_manage_;
-	int timer_;
+	int timer_; //delay time !
 public:
 	static server_framework<T> * instance_;
 public:
@@ -186,7 +186,7 @@ void* callback_func(cli_data_t * user_data){
 template<typename T>
 server_framework<T>::server_framework(int listenfd,int process_num)\
 		:listenfd_(listenfd),process_num_(process_num),\
-		timer_(-1),index_(-1),stop_(false){
+		timer_(2),index_(-1),stop_(false){
 	sub_process_=new process[process_num]; //class array for master communicate with worker process
 	timer_manage_=new time_heap(process_num*user_num_per_process);
 
@@ -265,8 +265,8 @@ void server_framework<T>::exec_worker_process(){
 	int pipefd=sub_process_[index_].pipefd[1];
 	set_fd(epollfd_,pipefd);
 	struct epoll_event events[max_event_num];
-	T* users=new T[user_num_per_process];
-	assert(users);
+//	T* users=new T[user_num_per_process];
+//	assert(users);
 	int current_num=0;
 	int ret=-1;
 	while(!stop_){
@@ -288,12 +288,16 @@ void server_framework<T>::exec_worker_process(){
 					if(connfd<0)
 					      continue;
 					set_fd(epollfd_,connfd);
-					//users[connfd].init(connfd,address);  
-					(users[connfd].user_data).address=address;
+					/*(users[connfd].user_data).address=address;
 					(users[connfd].user_data).sockfd=connfd;
 					users[connfd].callback_func=callback_func;
 					timer_manage_->add_timer(&users[connfd]);
-					timer_=(timer_manage_->get_top())->expire;
+					timer_=(timer_manage_->get_top())->expire;*/
+					heap_timer *timer=new heap_timer(timer_);
+					timer->callback_func=callback_func;
+					timer->user_data.address=address;
+					timer->user_data.sockfd=connfd;
+					timer_manage_->add_timer(timer);
 					//template <T>  as a timer func with callback_func !
 				}
 
@@ -323,22 +327,22 @@ void server_framework<T>::exec_worker_process(){
 					}
 				}
 			/*data coming ,EPOLLIN /EPOLLOUT  I/O event*/
-			}else if(events[i].events&EPOLLIN){
+			}/*else if(events[i].events&EPOLLIN){
 				int ret=1;
 				(*(users[sockfd].callback_func))(&users[sockfd].user_data);
 				if(ret<0)//ret as a bug ,not fix yet ! as deal with callback_func returned value !
 				      del_fd(epollfd_,sockfd);
 				else 
 				      continue;
-			}
+			}*/
 			//it should be somewhere to use tick() function to inspire the loop timeout check ! not finished wait....!
 			else
 			      continue;
 		}
 	}
 
-	delete []users;
-	users=NULL;
+//	delete []users;
+//	users=NULL;
 	close(pipefd);
 	close(epollfd_);
 }
